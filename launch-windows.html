@@ -1,0 +1,507 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<meta name="theme-color" content="#000000">
+<title>Launch windows</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Michroma&display=swap" rel="stylesheet">
+<style>
+  /* The launch look depends on black and glow, so the page stays dark in every viewer theme. */
+  :root{
+    --bg:#000000;
+    --ink:#ffffff;
+    --ash:#9c9c9c;
+    --dim:#6a6a6a;
+    --graphite:#242424;
+    --line:rgba(255,255,255,.14);
+    --line-strong:rgba(255,255,255,.34);
+    --halo:rgba(255,255,255,.55);
+    --halo-soft:rgba(255,255,255,.18);
+    --display:"Michroma","Eurostile","Microgramma D Extended",Arial,sans-serif;
+    --text:"Barlow","Helvetica Neue","Segoe UI",Arial,sans-serif;
+    color-scheme:dark;
+    box-sizing:border-box;
+    padding-top:env(safe-area-inset-top,0px);
+    padding-bottom:env(safe-area-inset-bottom,0px);
+    background:var(--bg);
+  }
+  @media (prefers-color-scheme: dark){ :root:not([data-theme="light"]){ --bg:#000000; --ink:#ffffff; } }
+  :root[data-theme="dark"]{ --bg:#000000; --ink:#ffffff; }
+
+  html{scroll-padding-top:env(safe-area-inset-top,0px);-webkit-text-size-adjust:100%}
+  *,*::before,*::after{box-sizing:inherit}
+  body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--text);-webkit-font-smoothing:antialiased}
+  button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
+  :focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:6px}
+
+  .wrap{max-width:680px;margin:0 auto;padding:28px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
+
+  /* Header */
+  .top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px 16px;padding-bottom:20px;border-bottom:1px solid var(--line)}
+  h1{margin:0;font:400 clamp(19px,5.4vw,26px)/1.2 var(--display);letter-spacing:.01em;text-shadow:0 0 18px var(--halo-soft)}
+  .mclock{margin:0;display:flex;align-items:center;gap:8px;font:500 14px/1 var(--text);color:var(--ash)}
+  .mclock .mt{color:var(--ink)}
+  .live-dot{width:7px;height:7px;border-radius:50%;background:var(--ink);box-shadow:0 0 8px 1px var(--halo);animation:breathe 2s ease-in-out infinite}
+
+  /* Sections */
+  .sec{margin-top:28px}
+  .sec h2{margin:0 0 12px;font:600 17px/1.3 var(--text)}
+  .stack{display:grid;gap:14px}
+
+  /* Lapsed accordion */
+  .acc{width:100%;display:flex;align-items:center;justify-content:space-between;gap:12px;padding:14px 16px;border:1px dashed rgba(255,255,255,.22);border-radius:14px;text-align:left;transition:border-color .2s}
+  .acc-text{display:flex;flex-direction:column;gap:3px}
+  .acc-title{font:600 17px/1.3 var(--text)}
+  .acc-meta{font-size:13px;color:var(--ash)}
+  .chev{flex:none;width:9px;height:9px;margin:0 4px 4px 0;border-right:1.5px solid currentColor;border-bottom:1.5px solid currentColor;transform:rotate(45deg);transition:transform .25s ease}
+  [aria-expanded="true"] > .chev{transform:rotate(225deg);margin:4px 4px 0 0}
+  .acc-body{display:grid;grid-template-rows:0fr;transition:grid-template-rows .35s ease}
+  .acc-body.open{grid-template-rows:1fr}
+  .acc-inner{overflow:hidden;min-height:0}
+  .acc-inner > .stack{padding:14px 2px 2px}
+
+  /* Window card */
+  .card{position:relative;padding:18px 18px 6px;border:1px solid var(--line);border-radius:18px;background:var(--bg)}
+  .card.target{border-color:var(--line-strong);box-shadow:0 0 0 1px rgba(255,255,255,.04),0 0 44px -10px rgba(255,255,255,.3)}
+  .card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .wname{margin:0;font:400 16px/1.3 var(--display);letter-spacing:.02em}
+  .wwhen{margin:6px 0 0;font-size:14px;color:var(--ash)}
+
+  .badge{flex:none;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:999px;font:600 12px/1 var(--text);color:var(--ash);white-space:nowrap}
+  .bdot{width:6px;height:6px;border-radius:50%;background:currentColor}
+  .badge[data-state="pre"],.badge[data-state="deb"]{color:var(--ink);border-color:var(--line-strong)}
+  .badge[data-state="stg"],.badge[data-state="open"]{color:#000;background:var(--ink);border-color:var(--ink);box-shadow:0 0 14px 1px var(--halo)}
+  .badge[data-state="pre"] .bdot,.badge[data-state="stg"] .bdot,.badge[data-state="open"] .bdot,.badge[data-state="deb"] .bdot{animation:breathe 1.6s ease-in-out infinite}
+  .badge[data-state="lapsed"]{border-style:dashed;color:var(--dim)}
+
+  /* T-clock */
+  .clock{margin:26px 0 6px;text-align:center;font:400 clamp(19px,7.4vw,44px)/1 var(--display);color:var(--ink);text-shadow:0 0 10px var(--halo),0 0 32px var(--halo-soft);white-space:nowrap}
+  .clock-in{display:inline-flex;align-items:baseline}
+  .sign{font-size:.5em;margin-right:.5em}
+  .grp{display:inline-flex;flex-direction:column;align-items:center}
+  .num{display:block}
+  .unit{margin-top:9px;font:500 11px/1 var(--text);letter-spacing:.06em;color:var(--ash);text-shadow:none}
+  .sep{padding:0 .12em;opacity:.55}
+  .dg{display:inline-block;width:1ch;text-align:center}
+  .clock-cap{margin:0 0 20px;text-align:center;font-size:13px;color:var(--ash)}
+
+  /* Stage track */
+  .track{display:flex;gap:4px;margin:0 0 14px}
+  .seg{flex:var(--g) 1 0;min-width:50px;padding:10px 0 6px;text-align:left;border-radius:6px}
+  .bar{position:relative;display:block;height:8px;border-radius:4px;background:var(--graphite);transition:background .2s}
+  .fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:inherit;background:rgba(255,255,255,.5)}
+  .seg.active .fill{background:var(--ink);box-shadow:0 0 10px 1px var(--halo)}
+  .ph{display:none;position:absolute;top:50%;left:0;width:14px;height:14px;margin:-7px 0 0 -7px;border-radius:50%;background:var(--ink);box-shadow:0 0 0 3px var(--bg),0 0 16px 4px var(--halo)}
+  .seg.has-ph .ph{display:block}
+  .card[data-phase="standby"] .ph,.card[data-phase="ended"] .ph{background:var(--ash);box-shadow:0 0 0 3px var(--bg)}
+  .lab{display:block;margin-top:9px;font:500 12px/1.2 var(--text);color:var(--ash);white-space:nowrap;overflow:hidden;text-overflow:ellipsis}
+  .seg.active .lab{color:var(--ink)}
+  .seg[aria-pressed="true"] .bar{outline:1px solid var(--ink);outline-offset:3px}
+  .seg[aria-pressed="true"] .lab{color:var(--ink)}
+
+  /* Stage panel */
+  .panel{padding:14px;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);transition:border-color .2s}
+  .panel.inspect{border-color:var(--line-strong)}
+  .panel-top{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:20px}
+  .ptag{font-size:12px;color:var(--ash)}
+  .relive{font:600 12px/1 var(--text);padding:4px 0;text-decoration:underline;text-underline-offset:3px}
+  .sname{margin:8px 0 3px;font:400 15px/1.3 var(--display);letter-spacing:.02em;text-shadow:0 0 12px var(--halo-soft)}
+  .srange{margin:0 0 12px;font-size:13px;color:var(--ash)}
+  .prow{display:flex;align-items:center;gap:12px}
+  .prog{flex:1;height:4px;border-radius:2px;background:var(--graphite)}
+  .pfill{display:block;height:100%;width:0;border-radius:2px;background:var(--ink);box-shadow:0 0 8px var(--halo)}
+  .pct{min-width:4ch;text-align:right;font:500 13px/1 var(--text)}
+  .pcells{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
+  .clab{display:block;font-size:12px;color:var(--ash);margin-bottom:3px}
+  .cval{font:500 16px/1.2 var(--text);white-space:nowrap}
+
+  /* Schedule */
+  .sched-btn{display:flex;align-items:center;gap:10px;width:100%;padding:14px 0 12px;font:600 14px/1 var(--text);text-align:left}
+  .chev.sm{width:7px;height:7px}
+  .sched{list-style:none;margin:0 0 8px;padding:0}
+  .ms{display:grid;grid-template-columns:10px 1fr auto;column-gap:12px;row-gap:3px;align-items:baseline;padding:10px 0;border-top:1px solid rgba(255,255,255,.08)}
+  .ms-dot{grid-row:span 2;align-self:start;margin-top:6px;width:8px;height:8px;border-radius:50%;border:1px solid var(--ash)}
+  .ms-name{font-size:14px}
+  .ms-t{font:500 14px/1.2 var(--text);text-align:right;white-space:nowrap}
+  .ms-when{grid-column:2 / 4;font-size:13px;color:var(--ash)}
+  .ms[data-state="past"] .ms-dot{background:var(--dim);border-color:var(--dim)}
+  .ms[data-state="past"] .ms-name{color:var(--ash)}
+  .ms[data-state="next"] .ms-dot{background:var(--ink);border-color:var(--ink);box-shadow:0 0 8px 1px var(--halo)}
+
+  /* Lapsed: same component, greyed out, unused window hatched */
+  .card.lapsed{border-style:dashed;border-color:rgba(255,255,255,.16)}
+  .card.lapsed .wname,.card.lapsed .sname,.card.lapsed .cval,.card.lapsed .pct,.card.lapsed .ms-name{color:var(--ash);text-shadow:none}
+  .card.lapsed .clock{color:var(--dim);text-shadow:none}
+  .card.lapsed .fill,.card.lapsed .seg.active .fill{background:rgba(150,150,150,.32);box-shadow:none}
+  .card.lapsed .seg[data-k="open"] .bar{background:repeating-linear-gradient(135deg,#3c3c3c 0 2px,#141414 2px 6px)}
+  .card.lapsed .ph{background:var(--dim);box-shadow:0 0 0 3px var(--bg)}
+  .card.lapsed .pfill{background:var(--dim);box-shadow:none}
+  .card.lapsed .seg[aria-pressed="true"] .bar{outline-color:var(--ash)}
+  .card.lapsed .sched-btn,.card.lapsed .relive{color:var(--ash)}
+  .card.lapsed .ms[data-state="next"] .ms-dot{background:var(--ash);border-color:var(--ash);box-shadow:none}
+
+  /* Footer */
+  .foot{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--ash)}
+  .foot p{margin:0;max-width:62ch}
+
+  @media (hover:hover){
+    .acc:hover{border-color:rgba(255,255,255,.42)}
+    .seg:hover .bar{background:#333}
+    .card.lapsed .seg[data-k="open"]:hover .bar{background:repeating-linear-gradient(135deg,#4a4a4a 0 2px,#1a1a1a 2px 6px)}
+  }
+
+  /* Stage change: one brief ignition flash */
+  @keyframes ignite{0%{box-shadow:0 0 0 1px var(--ink),0 0 90px 12px rgba(255,255,255,.55)}100%{box-shadow:0 0 0 0 transparent,0 0 0 0 transparent}}
+  .card.ignite{animation:ignite 1.8s ease-out}
+  @keyframes breathe{0%,100%{opacity:1}50%{opacity:.35}}
+  @media (prefers-reduced-motion: reduce){
+    *,*::before,*::after{animation:none !important;transition:none !important}
+  }
+</style>
+</head>
+<body>
+<main class="wrap">
+  <header class="top">
+    <h1>Launch windows</h1>
+    <p class="mclock">
+      <span class="live-dot" aria-hidden="true"></span>
+      <span id="m-date">&nbsp;</span>
+      <span id="m-time" class="mt">&nbsp;</span>
+      <span id="m-zone">CT</span>
+    </p>
+  </header>
+
+  <section class="sec" aria-labelledby="h-lapsed">
+    <button type="button" class="acc" id="h-lapsed" aria-expanded="false" aria-controls="lapsed-body">
+      <span class="acc-text">
+        <span class="acc-title">Lapsed windows</span>
+        <span class="acc-meta" id="lapsed-meta">Not utilized</span>
+      </span>
+      <span class="chev" aria-hidden="true"></span>
+    </button>
+    <div class="acc-body" id="lapsed-body" inert>
+      <div class="acc-inner"><div class="stack" data-group="lapsed"></div></div>
+    </div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-target">
+    <h2 id="h-target">Target window</h2>
+    <div class="stack" data-group="target"></div>
+  </section>
+
+  <section class="sec" aria-labelledby="h-next">
+    <h2 id="h-next">Next potential window</h2>
+    <div class="stack" data-group="next"></div>
+  </section>
+
+  <footer class="foot">
+    <p>All window times are fixed to US Central Time, so every viewer counts down to the same moment. Timers run on this device’s clock and are only as accurate as its time setting.</p>
+  </footer>
+</main>
+<noscript><p style="padding:16px;color:#fff">Turn on JavaScript to run the live timers.</p></noscript>
+
+<script>
+(function () {
+  'use strict';
+
+  var TZ = 'America/Chicago';
+  var HOUR = 3600000;
+
+  /* Window data. All times are US Central. Every date below falls in CDT (UTC−5);
+     DST ends Nov 1, 2026, after the last milestone, so the fixed −05:00 offset is exact. */
+  var WINDOWS = [
+    { id: 'w1', name: 'Window I',   group: 'lapsed', open: '2026-10-15T07:30:00-05:00', close: '2026-10-15T09:00:00-05:00' },
+    { id: 'w2', name: 'Window II',  group: 'lapsed', open: '2026-10-20T22:00:00-05:00', close: '2026-10-20T23:15:00-05:00' },
+    { id: 'w3', name: 'Window III', group: 'lapsed', open: '2026-10-22T07:30:00-05:00', close: '2026-10-22T09:00:00-05:00' },
+    { id: 'w4', name: 'Window IV',  group: 'target', open: '2026-10-25T20:00:00-05:00', close: '2026-10-25T21:30:00-05:00' },
+    { id: 'w5', name: 'Window V',   group: 'next',   open: '2026-10-27T22:00:00-05:00', close: '2026-10-27T23:30:00-05:00' }
+  ];
+
+  /* Stage rules: pre-staging opens −3 h, staging −1 h, debrief runs to close +1 h. */
+  var STAGES = [
+    { k: 'pre',  name: 'Pre-staging', label: 'Pre-staging' },
+    { k: 'stg',  name: 'Staging',     label: 'Staging' },
+    { k: 'open', name: 'Window open', label: 'Window' },
+    { k: 'deb',  name: 'Debrief',     label: 'Debrief' }
+  ];
+  var BADGE = { standby: 'Standing by', pre: 'Pre-staging', stg: 'Staging', open: 'Window open', deb: 'Debrief', ended: 'Ended' };
+  var MINUS = '\u2212';
+
+  /* ---------- formatting ---------- */
+  function pad(n) { return String(n).padStart(2, '0'); }
+  function clamp(x) { return Math.min(1, Math.max(0, x)); }
+
+  var fDay  = new Intl.DateTimeFormat('en-US', { timeZone: TZ, weekday: 'short', month: 'short', day: 'numeric' });
+  var fHM   = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true });
+  var fHMS  = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
+  var fZone = new Intl.DateTimeFormat('en-US', { timeZone: TZ, timeZoneName: 'short' });
+
+  function parts(f, ms) { var o = {}; f.formatToParts(ms).forEach(function (p) { o[p.type] = p.value; }); return o; }
+  function zoneOf(ms) { return parts(fZone, ms).timeZoneName || 'CT'; }
+  function day(ms) { return fDay.format(ms); }
+  function hm(ms) { var o = parts(fHM, ms); return { t: o.hour + ':' + o.minute, p: (o.dayPeriod || '').toUpperCase() }; }
+  function at(ms) { var a = hm(ms); return day(ms) + ', ' + a.t + ' ' + a.p; }
+  function range(a, b) {
+    var A = hm(a), B = hm(b), z = zoneOf(b);
+    if (day(a) === day(b)) {
+      return A.p === B.p ? A.t + '\u2013' + B.t + ' ' + B.p + ' ' + z
+                         : A.t + ' ' + A.p + '\u2013' + B.t + ' ' + B.p + ' ' + z;
+    }
+    return at(a) + ' \u2013 ' + at(b) + ' ' + z;
+  }
+
+  /* diff = now − event. Negative (−) means the event is upcoming; positive (+) means it has passed. */
+  function signed(diff) {
+    var up = diff < 0;
+    var s = up ? Math.ceil(-diff / 1000) : Math.floor(diff / 1000);
+    var d = Math.floor(s / 86400), h = Math.floor((s % 86400) / 3600), m = Math.floor((s % 3600) / 60), x = s % 60;
+    var hms = pad(h) + ':' + pad(m) + ':' + pad(x);
+    return { up: up, d: d, h: h, m: m, s: x, text: (up ? MINUS : '+') + (d ? d + 'd ' + hms : hms) };
+  }
+
+  /* Fixed-width digit cells keep every timer from jittering as digits change. */
+  function cells(str) {
+    var out = '';
+    for (var i = 0; i < str.length; i++) {
+      var c = str[i];
+      out += /\d/.test(c) ? '<span class="dg">' + c + '</span>' : '<span class="sy">' + c + '</span>';
+    }
+    return out;
+  }
+  function put(el, str) { if (el.__v !== str) { el.__v = str; el.innerHTML = cells(str); } }
+  function text(el, str) { if (el.__t !== str) { el.__t = str; el.textContent = str; } }
+
+  /* ---------- derive stages ---------- */
+  WINDOWS.forEach(function (w) {
+    var open = Date.parse(w.open), close = Date.parse(w.close);
+    w.valid = isFinite(open) && isFinite(close) && close > open;
+    var t = { pre: open - 3 * HOUR, stg: open - HOUR, open: open, close: close, end: close + HOUR };
+    w.t = t;
+    var b = [t.pre, t.stg, t.open, t.close, t.end];
+    w.stages = STAGES.map(function (s, i) { return { k: s.k, name: s.name, label: s.label, start: b[i], end: b[i + 1] }; });
+    w.milestones = [
+      { name: 'Pre-staging begins', at: t.pre },
+      { name: 'Staging begins',     at: t.stg },
+      { name: 'Window opens',       at: t.open },
+      { name: 'Window closes',      at: t.close },
+      { name: 'Debrief ends',       at: t.end }
+    ];
+  });
+
+  function phaseOf(w, now) {
+    if (now < w.t.pre) return { k: 'standby', i: -1 };
+    for (var i = 0; i < 4; i++) {
+      var s = w.stages[i];
+      if (now >= s.start && now < s.end) return { k: s.k, i: i };
+    }
+    return { k: 'ended', i: 4 };
+  }
+
+  /* ---------- build cards ---------- */
+  function grp(u, label) {
+    return '<span class="grp" aria-hidden="true"><span class="num" data-u="' + u + '"></span><span class="unit">' + label + '</span></span>';
+  }
+  var SEP = '<span class="sep" aria-hidden="true">:</span>';
+
+  function cardHTML(w) {
+    var lapsed = w.group === 'lapsed';
+    var when = day(w.t.open) === day(w.t.close) ? day(w.t.open) + ', ' + range(w.t.open, w.t.close) : range(w.t.open, w.t.close);
+    var segs = w.stages.map(function (s, i) {
+      return '<button type="button" class="seg" data-i="' + i + '" data-k="' + s.k + '" style="--g:' + Math.round((s.end - s.start) / 60000) + '" aria-pressed="false" aria-label="' + s.name + ', ' + range(s.start, s.end) + '">' +
+               '<span class="bar"><span class="fill"></span><span class="ph"></span></span>' +
+               '<span class="lab">' + s.label + '</span>' +
+             '</button>';
+    }).join('');
+    var ms = w.milestones.map(function (m) {
+      return '<li class="ms"><span class="ms-dot" aria-hidden="true"></span><span class="ms-name">' + m.name + '</span>' +
+             '<span class="ms-t"></span><span class="ms-when">' + at(m.at) + ' ' + zoneOf(m.at) + '</span></li>';
+    }).join('');
+    return '' +
+      '<article class="card' + (lapsed ? ' lapsed' : '') + (w.group === 'target' ? ' target' : '') + '" id="' + w.id + '">' +
+        '<header class="card-head">' +
+          '<div><h3 class="wname">' + w.name + '</h3><p class="wwhen">' + when + '</p></div>' +
+          '<span class="badge"><span class="bdot" aria-hidden="true"></span><span class="btxt"></span></span>' +
+        '</header>' +
+        '<div class="clock" role="timer"><span class="clock-in">' +
+          '<span class="sign" aria-hidden="true"></span>' +
+          grp('d', 'days') + SEP + grp('h', 'hrs') + SEP + grp('m', 'min') + SEP + grp('s', 'sec') +
+        '</span></div>' +
+        '<p class="clock-cap"></p>' +
+        '<div class="track" role="group" aria-label="' + w.name + ' stages. Select a stage to inspect it.">' + segs + '</div>' +
+        '<section class="panel" aria-label="Stage detail">' +
+          '<div class="panel-top"><span class="ptag"></span><button type="button" class="relive" hidden>Back to live</button></div>' +
+          '<p class="sname"></p>' +
+          '<p class="srange"></p>' +
+          '<div class="prow"><span class="prog"><span class="pfill"></span></span><span class="pct"></span></div>' +
+          '<div class="pcells">' +
+            '<div><span class="clab">Stage start</span><span class="cval cs"></span></div>' +
+            '<div><span class="clab">Stage end</span><span class="cval ce"></span></div>' +
+          '</div>' +
+        '</section>' +
+        '<button type="button" class="sched-btn" aria-expanded="false" aria-controls="' + w.id + '-sched">' +
+          '<span class="chev sm" aria-hidden="true"></span><span class="sb-txt">Show schedule</span>' +
+        '</button>' +
+        '<ol class="sched" id="' + w.id + '-sched" hidden>' + ms + '</ol>' +
+      '</article>';
+  }
+
+  var cards = [];
+  WINDOWS.forEach(function (w) {
+    var host = document.querySelector('.stack[data-group="' + w.group + '"]');
+    if (!w.valid) {
+      host.insertAdjacentHTML('beforeend', '<article class="card lapsed"><h3 class="wname">' + w.name +
+        '</h3><p class="wwhen">This window’s close time is not after its open time. Check the data.</p></article>');
+      return;
+    }
+    host.insertAdjacentHTML('beforeend', cardHTML(w));
+    var el = document.getElementById(w.id);
+    var q = function (s) { return el.querySelector(s); };
+    var c = {
+      w: w, el: el, follow: true, sel: 0, phase: null,
+      badge: q('.badge'), btxt: q('.btxt'),
+      clock: q('.clock'), sign: q('.sign'), cap: q('.clock-cap'),
+      nums: { d: q('[data-u="d"]'), h: q('[data-u="h"]'), m: q('[data-u="m"]'), s: q('[data-u="s"]') },
+      segs: Array.prototype.slice.call(el.querySelectorAll('.seg')),
+      panel: q('.panel'), ptag: q('.ptag'), relive: q('.relive'), sname: q('.sname'), srange: q('.srange'),
+      pfill: q('.pfill'), pct: q('.pct'), cs: q('.cs'), ce: q('.ce'),
+      sbtn: q('.sched-btn'), stxt: q('.sb-txt'), sched: q('.sched'),
+      ms: Array.prototype.slice.call(el.querySelectorAll('.ms'))
+    };
+    c.segs.forEach(function (b, i) {
+      b._fill = b.querySelector('.fill');
+      b._ph = b.querySelector('.ph');
+      b.addEventListener('click', function () {
+        if (!c.follow && c.sel === i) { c.follow = true; } else { c.follow = false; c.sel = i; }
+        renderCard(c, Date.now());
+      });
+    });
+    c.ms.forEach(function (li) { li._t = li.querySelector('.ms-t'); });
+    c.relive.addEventListener('click', function () { c.follow = true; renderCard(c, Date.now()); });
+    c.sbtn.addEventListener('click', function () {
+      var open = c.sched.hidden;
+      c.sched.hidden = !open;
+      c.sbtn.setAttribute('aria-expanded', String(open));
+      text(c.stxt, open ? 'Hide schedule' : 'Show schedule');
+      renderCard(c, Date.now());
+    });
+    cards.push(c);
+  });
+
+  /* ---------- render ---------- */
+  var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
+  function flash(el) {
+    if (reduce.matches) return;
+    el.classList.remove('ignite'); void el.offsetWidth; el.classList.add('ignite');
+  }
+
+  function renderCard(c, now) {
+    var w = c.w, ph = phaseOf(w, now), lapsed = w.group === 'lapsed';
+
+    if (c.phase && c.phase !== ph.k) flash(c.el);
+    c.phase = ph.k;
+    c.el.setAttribute('data-phase', ph.k);
+
+    c.badge.setAttribute('data-state', lapsed ? 'lapsed' : ph.k);
+    text(c.btxt, lapsed ? 'Not utilized' : BADGE[ph.k]);
+
+    /* Main clock: T relative to the window opening */
+    var r = signed(now - w.t.open);
+    text(c.sign, r.up ? 'T' + MINUS : 'T+');
+    put(c.nums.d, pad(r.d)); put(c.nums.h, pad(r.h)); put(c.nums.m, pad(r.m)); put(c.nums.s, pad(r.s));
+    c.clock.setAttribute('aria-label', 'T ' + (r.up ? 'minus ' : 'plus ') + r.d + ' days, ' + r.h + ' hours, ' + r.m + ' minutes, ' + r.s + ' seconds');
+    text(c.cap, r.up ? 'until window opens' : 'since window opened');
+
+    /* Stage track */
+    c.segs.forEach(function (b, i) {
+      var s = w.stages[i], p = clamp((now - s.start) / (s.end - s.start));
+      b._fill.style.width = (p * 100).toFixed(3) + '%';
+      b.classList.toggle('active', ph.i === i);
+      var showPh = ph.i === i || (ph.k === 'standby' && i === 0) || (ph.k === 'ended' && i === 3);
+      b.classList.toggle('has-ph', showPh);
+      if (showPh) b._ph.style.left = (p * 100).toFixed(3) + '%';
+      b.setAttribute('aria-pressed', String(!c.follow && c.sel === i));
+    });
+
+    /* Stage panel: follows the live stage, or the stage the viewer selected */
+    var st;
+    if (!c.follow) st = w.stages[c.sel];
+    else if (ph.k === 'standby') st = { name: 'Standing by', start: null, end: w.t.pre, note: 'Pre-staging begins ' + at(w.t.pre) + ' ' + zoneOf(w.t.pre) };
+    else if (ph.k === 'ended') st = { name: 'Sequence ended', start: w.t.end, end: null, note: 'Debrief ended ' + at(w.t.end) + ' ' + zoneOf(w.t.end) };
+    else st = w.stages[ph.i];
+
+    text(c.ptag, c.follow ? 'Current stage' : 'Selected stage');
+    c.relive.hidden = c.follow;
+    c.panel.classList.toggle('inspect', !c.follow);
+    text(c.sname, st.name);
+    text(c.srange, st.note || range(st.start, st.end));
+    var p = st.start == null ? 0 : st.end == null ? 1 : clamp((now - st.start) / (st.end - st.start));
+    c.pfill.style.width = (p * 100).toFixed(3) + '%';
+    put(c.pct, Math.floor(p * 100) + '%');
+    put(c.cs, st.start == null ? '\u2014' : signed(now - st.start).text);
+    put(c.ce, st.end == null ? '\u2014' : signed(now - st.end).text);
+
+    /* Schedule, only while it is open */
+    if (!c.sched.hidden) {
+      var nextFound = false;
+      c.ms.forEach(function (li, i) {
+        var m = w.milestones[i], past = now >= m.at, state = past ? 'past' : 'future';
+        if (!past && !nextFound) { state = 'next'; nextFound = true; }
+        li.setAttribute('data-state', state);
+        put(li._t, signed(now - m.at).text);
+      });
+    }
+  }
+
+  var mDate = document.getElementById('m-date'), mTime = document.getElementById('m-time'), mZone = document.getElementById('m-zone');
+  function renderMission(now) {
+    var o = parts(fHMS, now);
+    text(mDate, day(now));
+    put(mTime, o.hour + ':' + o.minute + ':' + o.second + ' ' + (o.dayPeriod || '').toUpperCase());
+    text(mZone, zoneOf(now));
+  }
+
+  function tick() {
+    var now = Date.now();
+    renderMission(now);
+    cards.forEach(function (c) { renderCard(c, now); });
+  }
+  function loop() { tick(); setTimeout(loop, 1000 - (Date.now() % 1000) + 15); }
+
+  /* Shrink every T-clock together if the widest one would overflow its card */
+  function fitClocks() {
+    var list = cards.map(function (c) { return c.clock; });
+    list.forEach(function (el) { el.style.fontSize = ''; });
+    var scale = 1;
+    list.forEach(function (el) {
+      var avail = el.clientWidth, need = el.firstElementChild.getBoundingClientRect().width;
+      if (avail > 0 && need > avail) scale = Math.min(scale, avail / need);
+    });
+    if (scale < 1 && list.length) {
+      var base = parseFloat(getComputedStyle(list[0]).fontSize);
+      list.forEach(function (el) { el.style.fontSize = (base * scale * 0.97).toFixed(2) + 'px'; });
+    }
+  }
+
+  /* Lapsed accordion */
+  var acc = document.getElementById('h-lapsed'), accBody = document.getElementById('lapsed-body');
+  var nLapsed = WINDOWS.filter(function (w) { return w.group === 'lapsed'; }).length;
+  document.getElementById('lapsed-meta').textContent = nLapsed + ' windows, not utilized';
+  acc.addEventListener('click', function () {
+    var open = acc.getAttribute('aria-expanded') !== 'true';
+    acc.setAttribute('aria-expanded', String(open));
+    accBody.classList.toggle('open', open);
+    if (open) accBody.removeAttribute('inert'); else accBody.setAttribute('inert', '');
+  });
+
+  loop();
+  fitClocks();
+  window.addEventListener('resize', fitClocks);
+  if (document.fonts && document.fonts.ready) document.fonts.ready.then(fitClocks);
+  document.addEventListener('visibilitychange', function () { if (!document.hidden) tick(); });
+})();
+</script>
+</body>
+</html>
