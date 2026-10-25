@@ -163,6 +163,16 @@ var LAUNCH_WINDOWS = [
   .lk-meter{display:flex;gap:3px;height:10px}
   .lk-meter i{position:relative;flex:1;border-radius:2px;background:var(--graphite)}
   .lk-meter b{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--ink);box-shadow:0 0 6px rgba(255,255,255,.55)}
+  /* Likelihood brackets: red to 50%, amber to 75%, lime to 90%, green to 100% */
+  :root{--red:#ff4b3e;--amber:#ffb224;--lime:#c3f53c;--green:#2fe37a}
+  .lk-meter .br-red b{background:var(--red);box-shadow:0 0 7px rgba(255,75,62,.65)}
+  .lk-meter .br-amber b{background:var(--amber);box-shadow:0 0 7px rgba(255,178,36,.6)}
+  .lk-meter .br-lime b{background:var(--lime);box-shadow:0 0 7px rgba(195,245,60,.55)}
+  .lk-meter .br-green b{background:var(--green);box-shadow:0 0 7px rgba(47,227,122,.6)}
+  .lk-val[data-br="red"]{color:var(--red);text-shadow:0 0 12px rgba(255,75,62,.45)}
+  .lk-val[data-br="amber"]{color:var(--amber);text-shadow:0 0 12px rgba(255,178,36,.4)}
+  .lk-val[data-br="lime"]{color:var(--lime);text-shadow:0 0 12px rgba(195,245,60,.38)}
+  .lk-val[data-br="green"]{color:var(--green);text-shadow:0 0 12px rgba(47,227,122,.42)}
 
   /* Stage track */
   .track{display:flex;gap:4px;margin:0 0 14px}
@@ -464,15 +474,23 @@ var LAUNCH_WINDOWS = [
   }
   var SEP = '<span class="sep" aria-hidden="true">:</span>';
 
+  /* Likelihood brackets (upper bounds inclusive). Each 5% meter segment takes the color of the
+     bracket it sits in; the number takes the color of the highest bracket the value reaches. */
+  var BRACKETS = [ { max: 50, k: 'red' }, { max: 75, k: 'amber' }, { max: 90, k: 'lime' }, { max: 100, k: 'green' } ];
+  function bracketOf(v) {
+    for (var i = 0; i < BRACKETS.length; i++) if (v <= BRACKETS[i].max) return BRACKETS[i].k;
+    return BRACKETS[BRACKETS.length - 1].k;
+  }
+
   function likelihoodHTML(w) {
     var lk = w.lk, ticks = '';
     for (var i = 0; i < 20; i++) {
       var f = lk.value == null ? 0 : clamp((lk.value - i * 5) / 5);
-      ticks += '<i>' + (f > 0 ? '<b style="width:' + (f * 100).toFixed(1) + '%"></b>' : '') + '</i>';
+      ticks += '<i class="br-' + bracketOf(i * 5 + 5) + '">' + (f > 0 ? '<b style="width:' + (f * 100).toFixed(1) + '%"></b>' : '') + '</i>';
     }
     var val = lk.state === 'set' ? pctText(lk.value) : lk.state === 'unset' ? 'Not set' : 'Check value';
     return '<div class="lk">' +
-             '<div class="lk-top"><span class="flab">Launch likelihood</span><span class="lk-val' + (lk.state === 'set' ? '' : ' muted') + '">' + val + '</span></div>' +
+             '<div class="lk-top"><span class="flab">Launch likelihood</span><span class="lk-val' + (lk.state === 'set' ? '" data-br="' + bracketOf(lk.value) : ' muted') + '">' + val + '</span></div>' +
              '<div class="lk-meter" role="meter" aria-label="Launch likelihood" aria-valuemin="0" aria-valuemax="100"' +
                (lk.state === 'set' ? ' aria-valuenow="' + lk.value + '"' : ' aria-valuetext="' + val + '"') + '>' + ticks + '</div>' +
            '</div>';
