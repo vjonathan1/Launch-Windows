@@ -4,7 +4,49 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
 <meta name="theme-color" content="#000000">
-<title>Launch Windows</title>
+<title>Launch windows</title>
+
+<script>
+/* =====================================================================
+   EDIT HERE
+   ---------------------------------------------------------------------
+   To add a window: copy the template line at the bottom of the list,
+   paste it as a new line above the template, delete the // at its
+   start, and fill it in. Keep the comma at the end of every line.
+   Order doesn't matter; the page sorts windows by time.
+
+   name        Label shown on the card.
+   open/close  US Central wall-clock time, 'YYYY-MM-DD HH:MM' (24-hour).
+               The page applies CDT or CST automatically.
+   likelihood  0 to 100: the chance of an actual attempted launch in
+               that window. Use null when no estimate has been set.
+
+   Sections are assigned automatically:
+     Lapsed           every window whose debrief has ended
+                      (1 hour after it closes)
+     Target           the earliest window still upcoming or in progress
+     Next potential   the one after that
+     Later            any further windows
+
+   Outcomes are applied automatically from the likelihood:
+     100, once the window has opened  ->  "Launch successful"
+     0, once the window has closed    ->  "Launch deserted"
+     any other value after it closes  ->  "Outcome unconfirmed"
+   ===================================================================== */
+var ZERO_HOUR = { start: '2022-08-17 08:00', end: '2026-12-11 19:00' };
+
+var LAUNCH_WINDOWS = [
+  { name: 'Window I',   open: '2026-10-15 07:30', close: '2026-10-15 09:00', likelihood: 0 },
+  { name: 'Window II',  open: '2026-10-20 22:00', close: '2026-10-20 23:15', likelihood: 0 },
+  { name: 'Window III', open: '2026-10-22 07:30', close: '2026-10-22 09:00', likelihood: 0 },
+  { name: 'Window IV',  open: '2026-10-25 20:00', close: '2026-10-25 21:30', likelihood: 1 },
+  { name: 'Window V',   open: '2026-10-27 22:00', close: '2026-10-27 23:30', likelihood: 92 },
+
+  // Template:
+  // { name: 'Window VI',  open: 'YYYY-MM-DD HH:MM', close: 'YYYY-MM-DD HH:MM', likelihood: null },
+];
+</script>
+
 <link rel="preconnect" href="https://fonts.googleapis.com">
 <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
 <link href="https://fonts.googleapis.com/css2?family=Barlow:wght@400;500;600&family=Michroma&display=swap" rel="stylesheet">
@@ -20,6 +62,7 @@
     --line-strong:rgba(255,255,255,.34);
     --halo:rgba(255,255,255,.55);
     --halo-soft:rgba(255,255,255,.18);
+    --sticky:rgba(0,0,0,.86);
     --display:"Michroma","Eurostile","Microgramma D Extended",Arial,sans-serif;
     --text:"Barlow","Helvetica Neue","Segoe UI",Arial,sans-serif;
     color-scheme:dark;
@@ -36,13 +79,33 @@
   body{margin:0;background:var(--bg);color:var(--ink);font:400 16px/1.5 var(--text);-webkit-font-smoothing:antialiased}
   button{font:inherit;color:inherit;background:none;border:0;padding:0;margin:0;cursor:pointer;-webkit-tap-highlight-color:transparent}
   :focus-visible{outline:2px solid var(--ink);outline-offset:3px;border-radius:6px}
+  p{margin:0}
 
-  .wrap{max-width:680px;margin:0 auto;padding:28px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
+  /* Type tiers: sentence case for headings and text; all caps for system labels */
+  .flab,.ptag,.clab,.badge,.unit{text-transform:uppercase}
+  .flab,.ptag,.clab{font:600 11px/1.2 var(--text);letter-spacing:.08em;color:var(--ash)}
+
+  /* Zero hour: sticky at the top */
+  body::before{content:"";position:fixed;inset:0 0 auto;height:env(safe-area-inset-top,0px);z-index:30;background:var(--sticky);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px)}
+  .zh-wrap{position:sticky;top:env(safe-area-inset-top,0px);z-index:20;padding:10px max(16px,env(safe-area-inset-right,0px)) 10px max(16px,env(safe-area-inset-left,0px));background:var(--sticky);-webkit-backdrop-filter:blur(14px);backdrop-filter:blur(14px);border-bottom:1px solid rgba(255,255,255,.06)}
+  .zh{max-width:648px;margin:0 auto;padding:12px 14px 14px;border:1px solid var(--line-strong);border-radius:14px;background:var(--bg);box-shadow:0 0 0 1px rgba(255,255,255,.03),0 0 32px -14px rgba(255,255,255,.5)}
+  .zh-row{display:flex;flex-wrap:wrap;align-items:flex-start;justify-content:space-between;gap:8px 12px}
+  .zh-title{font:400 13px/1.2 var(--display);letter-spacing:.14em;text-transform:uppercase;text-shadow:0 0 12px var(--halo)}
+  .zh-tag{margin-top:6px;font-size:13px;line-height:1.2;color:var(--ash)}
+  .zh-prow{display:flex;align-items:center;gap:14px;margin-top:12px}
+  .zh-bar{position:relative;flex:1;height:4px;margin-right:6px;border-radius:2px;background:var(--graphite)}
+  .zh-fill{position:absolute;left:0;top:0;bottom:0;width:0;border-radius:2px;background:linear-gradient(90deg,rgba(255,255,255,.25),#fff);box-shadow:0 0 8px var(--halo)}
+  .zh-end{position:absolute;right:-5px;top:50%;width:10px;height:10px;margin-top:-5px;border-radius:50%;background:var(--ink);box-shadow:0 0 10px 2px var(--halo);animation:endpulse 1.4s ease-in-out infinite}
+  .zh-end::after{content:"";position:absolute;inset:-1px;border-radius:50%;border:1px solid var(--ink);animation:ping 1.4s ease-out infinite}
+  .zh.done .zh-end,.zh.done .zh-end::after{animation:none}
+  .zh-pct{min-width:6ch;text-align:right;font:500 13px/1 var(--text)}
+
+  .wrap{max-width:680px;margin:0 auto;padding:22px max(16px,env(safe-area-inset-right,0px)) 40px max(16px,env(safe-area-inset-left,0px))}
 
   /* Header */
   .top{display:flex;flex-wrap:wrap;align-items:baseline;justify-content:space-between;gap:10px 16px;padding-bottom:20px;border-bottom:1px solid var(--line)}
   h1{margin:0;font:400 clamp(19px,5.4vw,26px)/1.2 var(--display);letter-spacing:.01em;text-shadow:0 0 18px var(--halo-soft)}
-  .mclock{margin:0;display:flex;align-items:center;gap:8px;font:500 14px/1 var(--text);color:var(--ash)}
+  .mclock{display:flex;align-items:center;gap:8px;font:500 14px/1 var(--text);color:var(--ash)}
   .mclock .mt{color:var(--ink)}
   .live-dot{width:7px;height:7px;border-radius:50%;background:var(--ink);box-shadow:0 0 8px 1px var(--halo);animation:breathe 2s ease-in-out infinite}
 
@@ -66,27 +129,40 @@
   /* Window card */
   .card{position:relative;padding:18px 18px 6px;border:1px solid var(--line);border-radius:18px;background:var(--bg)}
   .card.target{border-color:var(--line-strong);box-shadow:0 0 0 1px rgba(255,255,255,.04),0 0 44px -10px rgba(255,255,255,.3)}
-  .card-head{display:flex;justify-content:space-between;align-items:flex-start;gap:12px}
+  .card-head{display:flex;flex-wrap:wrap;justify-content:space-between;align-items:center;gap:8px 12px}
   .wname{margin:0;font:400 16px/1.3 var(--display);letter-spacing:.02em}
-  .wwhen{margin:6px 0 0;font-size:14px;color:var(--ash)}
+  .wwhen{margin-top:6px;font-size:14px;color:var(--ash)}
 
-  .badge{flex:none;display:inline-flex;align-items:center;gap:6px;padding:5px 10px;border:1px solid var(--line);border-radius:999px;font:600 12px/1 var(--text);color:var(--ash);white-space:nowrap}
+  .badge{flex:none;display:inline-flex;align-items:center;gap:6px;padding:6px 10px;border:1px solid var(--line);border-radius:999px;font:600 11px/1 var(--text);letter-spacing:.08em;color:var(--ash);white-space:nowrap}
   .bdot{width:6px;height:6px;border-radius:50%;background:currentColor}
   .badge[data-state="pre"],.badge[data-state="deb"]{color:var(--ink);border-color:var(--line-strong)}
-  .badge[data-state="stg"],.badge[data-state="open"]{color:#000;background:var(--ink);border-color:var(--ink);box-shadow:0 0 14px 1px var(--halo)}
+  .badge[data-state="stg"],.badge[data-state="open"],.badge[data-state="success"]{color:#000;background:var(--ink);border-color:var(--ink);box-shadow:0 0 14px 1px var(--halo)}
   .badge[data-state="pre"] .bdot,.badge[data-state="stg"] .bdot,.badge[data-state="open"] .bdot,.badge[data-state="deb"] .bdot{animation:breathe 1.6s ease-in-out infinite}
-  .badge[data-state="lapsed"]{border-style:dashed;color:var(--dim)}
+  .badge[data-state="deserted"]{border-style:dashed;color:var(--dim)}
+  .badge[data-state="unconfirmed"]{border-style:dashed;color:var(--ink)}
 
-  /* T-clock */
+  /* T-clock (shared by the window cards and zero hour) */
   .clock{margin:26px 0 6px;text-align:center;font:400 clamp(19px,7.4vw,44px)/1 var(--display);color:var(--ink);text-shadow:0 0 10px var(--halo),0 0 32px var(--halo-soft);white-space:nowrap}
   .clock-in{display:inline-flex;align-items:baseline}
   .sign{font-size:.5em;margin-right:.5em}
   .grp{display:inline-flex;flex-direction:column;align-items:center}
   .num{display:block}
-  .unit{margin-top:9px;font:500 11px/1 var(--text);letter-spacing:.06em;color:var(--ash);text-shadow:none}
+  .unit{margin-top:9px;font:500 10px/1 var(--text);letter-spacing:.1em;color:var(--ash);text-shadow:none}
   .sep{padding:0 .12em;opacity:.55}
   .dg{display:inline-block;width:1ch;text-align:center}
   .clock-cap{margin:0 0 20px;text-align:center;font-size:13px;color:var(--ash)}
+  .clock.mini{margin:0 0 0 auto;text-align:right;font-size:clamp(14px,4.3vw,20px)}
+  .clock.mini .sign{font-size:.55em}
+  .clock.mini .unit{margin-top:5px;font-size:9px}
+
+  /* Launch likelihood */
+  .lk{margin:0 0 18px}
+  .lk-top{display:flex;justify-content:space-between;align-items:baseline;gap:12px;margin-bottom:9px}
+  .lk-val{font:400 18px/1 var(--display);text-shadow:0 0 12px var(--halo-soft)}
+  .lk-val.muted{font:500 14px/1 var(--text);color:var(--ash);text-shadow:none}
+  .lk-meter{display:flex;gap:3px;height:10px}
+  .lk-meter i{position:relative;flex:1;border-radius:2px;background:var(--graphite)}
+  .lk-meter b{position:absolute;left:0;top:0;bottom:0;border-radius:2px;background:var(--ink);box-shadow:0 0 6px rgba(255,255,255,.55)}
 
   /* Stage track */
   .track{display:flex;gap:4px;margin:0 0 14px}
@@ -106,16 +182,15 @@
   .panel{padding:14px;border-radius:12px;background:rgba(255,255,255,.035);border:1px solid rgba(255,255,255,.06);transition:border-color .2s}
   .panel.inspect{border-color:var(--line-strong)}
   .panel-top{display:flex;justify-content:space-between;align-items:center;gap:8px;min-height:20px}
-  .ptag{font-size:12px;color:var(--ash)}
   .relive{font:600 12px/1 var(--text);padding:4px 0;text-decoration:underline;text-underline-offset:3px}
   .sname{margin:8px 0 3px;font:400 15px/1.3 var(--display);letter-spacing:.02em;text-shadow:0 0 12px var(--halo-soft)}
-  .srange{margin:0 0 12px;font-size:13px;color:var(--ash)}
+  .srange{margin-bottom:12px;font-size:13px;color:var(--ash)}
   .prow{display:flex;align-items:center;gap:12px}
   .prog{flex:1;height:4px;border-radius:2px;background:var(--graphite)}
   .pfill{display:block;height:100%;width:0;border-radius:2px;background:var(--ink);box-shadow:0 0 8px var(--halo)}
   .pct{min-width:4ch;text-align:right;font:500 13px/1 var(--text)}
   .pcells{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-top:14px}
-  .clab{display:block;font-size:12px;color:var(--ash);margin-bottom:3px}
+  .clab{display:block;margin-bottom:4px}
   .cval{font:500 16px/1.2 var(--text);white-space:nowrap}
 
   /* Schedule */
@@ -131,41 +206,76 @@
   .ms[data-state="past"] .ms-name{color:var(--ash)}
   .ms[data-state="next"] .ms-dot{background:var(--ink);border-color:var(--ink);box-shadow:0 0 8px 1px var(--halo)}
 
-  /* Lapsed: same component, greyed out, unused window hatched */
-  .card.lapsed{border-style:dashed;border-color:rgba(255,255,255,.16)}
-  .card.lapsed .wname,.card.lapsed .sname,.card.lapsed .cval,.card.lapsed .pct,.card.lapsed .ms-name{color:var(--ash);text-shadow:none}
-  .card.lapsed .clock{color:var(--dim);text-shadow:none}
-  .card.lapsed .fill,.card.lapsed .seg.active .fill{background:rgba(150,150,150,.32);box-shadow:none}
-  .card.lapsed .seg[data-k="open"] .bar{background:repeating-linear-gradient(135deg,#3c3c3c 0 2px,#141414 2px 6px)}
-  .card.lapsed .ph{background:var(--dim);box-shadow:0 0 0 3px var(--bg)}
-  .card.lapsed .pfill{background:var(--dim);box-shadow:none}
-  .card.lapsed .seg[aria-pressed="true"] .bar{outline-color:var(--ash)}
-  .card.lapsed .sched-btn,.card.lapsed .relive{color:var(--ash)}
-  .card.lapsed .ms[data-state="next"] .ms-dot{background:var(--ash);border-color:var(--ash);box-shadow:none}
+  /* Launch successful */
+  .card.success{border-color:var(--ink);box-shadow:0 0 0 1px rgba(255,255,255,.08),0 0 44px -10px rgba(255,255,255,.45)}
+
+  /* Launch deserted: same component, greyed out, unused window hatched */
+  .card.deserted{border-style:dashed;border-color:rgba(255,255,255,.16);box-shadow:none}
+  .card.deserted .wname,.card.deserted .sname,.card.deserted .cval,.card.deserted .pct,.card.deserted .ms-name{color:var(--ash);text-shadow:none}
+  .card.deserted .clock,.card.deserted .lk-val{color:var(--dim);text-shadow:none}
+  .card.deserted .lk-meter b{background:var(--dim);box-shadow:none}
+  .card.deserted .fill,.card.deserted .seg.active .fill{background:rgba(150,150,150,.32);box-shadow:none}
+  .card.deserted .seg[data-k="open"] .bar{background:repeating-linear-gradient(135deg,#3c3c3c 0 2px,#141414 2px 6px)}
+  .card.deserted .ph{background:var(--dim);box-shadow:0 0 0 3px var(--bg)}
+  .card.deserted .pfill{background:var(--dim);box-shadow:none}
+  .card.deserted .seg[aria-pressed="true"] .bar{outline-color:var(--ash)}
+  .card.deserted .sched-btn,.card.deserted .relive{color:var(--ash)}
+  .card.deserted .ms[data-state="next"] .ms-dot{background:var(--ash);border-color:var(--ash);box-shadow:none}
+
+  .card.error .wwhen{color:var(--ink)}
+  .errors:empty{display:none}
+  .errors{margin-top:20px}
+  .alert{padding:14px 16px;border:1px solid var(--ink);border-radius:14px;font-size:14px;box-shadow:0 0 24px -8px var(--halo)}
+  .empty{padding:16px;border:1px dashed rgba(255,255,255,.18);border-radius:14px;font-size:14px;color:var(--ash)}
+  .acc.solid{border-style:solid;border-color:var(--line)}
 
   /* Footer */
   .foot{margin-top:32px;padding-top:16px;border-top:1px solid var(--line);font-size:13px;color:var(--ash)}
-  .foot p{margin:0;max-width:62ch}
+  .foot p{max-width:62ch}
 
   @media (hover:hover){
     .acc:hover{border-color:rgba(255,255,255,.42)}
     .seg:hover .bar{background:#333}
-    .card.lapsed .seg[data-k="open"]:hover .bar{background:repeating-linear-gradient(135deg,#4a4a4a 0 2px,#1a1a1a 2px 6px)}
+    .card.deserted .seg[data-k="open"]:hover .bar{background:repeating-linear-gradient(135deg,#4a4a4a 0 2px,#1a1a1a 2px 6px)}
   }
 
-  /* Stage change: one brief ignition flash */
   @keyframes ignite{0%{box-shadow:0 0 0 1px var(--ink),0 0 90px 12px rgba(255,255,255,.55)}100%{box-shadow:0 0 0 0 transparent,0 0 0 0 transparent}}
   .card.ignite{animation:ignite 1.8s ease-out}
   @keyframes breathe{0%,100%{opacity:1}50%{opacity:.35}}
+  @keyframes endpulse{0%,100%{transform:scale(1);box-shadow:0 0 8px 1px var(--halo)}50%{transform:scale(1.3);box-shadow:0 0 20px 6px var(--halo)}}
+  @keyframes ping{0%{transform:scale(1);opacity:.85}100%{transform:scale(2.8);opacity:0}}
   @media (prefers-reduced-motion: reduce){
     *,*::before,*::after{animation:none !important;transition:none !important}
   }
 </style>
 </head>
 <body>
+
+<div class="zh-wrap">
+  <section class="zh" id="zh" aria-label="Zero hour">
+    <div class="zh-row">
+      <div>
+        <p class="zh-title">Zero hour</p>
+        <p class="zh-tag">Time until graduation</p>
+      </div>
+      <div class="clock mini" role="timer" id="zh-clock"><span class="clock-in">
+        <span class="sign" aria-hidden="true"></span>
+        <span class="grp" aria-hidden="true"><span class="num" data-u="d"></span><span class="unit">Days</span></span><span class="sep" aria-hidden="true">:</span>
+        <span class="grp" aria-hidden="true"><span class="num" data-u="h"></span><span class="unit">Hrs</span></span><span class="sep" aria-hidden="true">:</span>
+        <span class="grp" aria-hidden="true"><span class="num" data-u="m"></span><span class="unit">Min</span></span><span class="sep" aria-hidden="true">:</span>
+        <span class="grp" aria-hidden="true"><span class="num" data-u="s"></span><span class="unit">Sec</span></span>
+      </span></div>
+    </div>
+    <div class="zh-prow">
+      <span class="zh-bar" role="progressbar" aria-label="Progress to graduation" aria-valuemin="0" aria-valuemax="100" id="zh-bar"><span class="zh-fill" id="zh-fill"></span><span class="zh-end" aria-hidden="true"></span></span>
+      <span class="zh-pct" id="zh-pct"></span>
+    </div>
+  </section>
+</div>
+
 <main class="wrap">
   <header class="top">
-    <h1>Launch Windows</h1>
+    <h1>Launch windows</h1>
     <p class="mclock">
       <span class="live-dot" aria-hidden="true"></span>
       <span id="m-date">&nbsp;</span>
@@ -174,11 +284,13 @@
     </p>
   </header>
 
+  <div class="stack errors" id="errors"></div>
+
   <section class="sec" aria-labelledby="h-lapsed">
     <button type="button" class="acc" id="h-lapsed" aria-expanded="false" aria-controls="lapsed-body">
       <span class="acc-text">
-        <span class="acc-title">Lapsed Windows</span>
-        <span class="acc-meta" id="lapsed-meta">Not utilized</span>
+        <span class="acc-title">Lapsed windows</span>
+        <span class="acc-meta" id="lapsed-meta">&nbsp;</span>
       </span>
       <span class="chev" aria-hidden="true"></span>
     </button>
@@ -188,17 +300,32 @@
   </section>
 
   <section class="sec" aria-labelledby="h-target">
-    <h2 id="h-target">Target Window</h2>
+    <h2 id="h-target">Target window</h2>
     <div class="stack" data-group="target"></div>
+    <p class="empty" data-empty="target" hidden>No upcoming window. Add one to the list at the top of the file.</p>
   </section>
 
   <section class="sec" aria-labelledby="h-next">
-    <h2 id="h-next">Next Potential Window</h2>
+    <h2 id="h-next">Next potential window</h2>
     <div class="stack" data-group="next"></div>
+    <p class="empty" data-empty="next" hidden>No further window scheduled yet.</p>
+  </section>
+
+  <section class="sec" id="sec-later" aria-labelledby="h-later" hidden>
+    <button type="button" class="acc solid" id="h-later" aria-expanded="false" aria-controls="later-body">
+      <span class="acc-text">
+        <span class="acc-title">Later windows</span>
+        <span class="acc-meta" id="later-meta">&nbsp;</span>
+      </span>
+      <span class="chev" aria-hidden="true"></span>
+    </button>
+    <div class="acc-body" id="later-body" inert>
+      <div class="acc-inner"><div class="stack" data-group="later"></div></div>
+    </div>
   </section>
 
   <footer class="foot">
-    <p>All window times are fixed to US Central Time, so every viewer counts down to the same moment. Timers run on this device’s clock and are only as accurate as its time setting.</p>
+    <p>All times are fixed to US Central Time, so every viewer counts down to the same moment. Timers run on this device’s clock and are only as accurate as its time setting.</p>
   </footer>
 </main>
 <noscript><p style="padding:16px;color:#fff">Turn on JavaScript to run the live timers.</p></noscript>
@@ -209,26 +336,17 @@
 
   var TZ = 'America/Chicago';
   var HOUR = 3600000;
-
-  /* Window data. All times are US Central. Every date below falls in CDT (UTC−5);
-     DST ends Nov 1, 2026, after the last milestone, so the fixed −05:00 offset is exact. */
-  var WINDOWS = [
-    { id: 'w1', name: 'Window I',   group: 'lapsed', open: '2026-10-15T07:30:00-05:00', close: '2026-10-15T09:00:00-05:00' },
-    { id: 'w2', name: 'Window II',  group: 'lapsed', open: '2026-10-20T22:00:00-05:00', close: '2026-10-20T23:15:00-05:00' },
-    { id: 'w3', name: 'Window III', group: 'lapsed', open: '2026-10-22T07:30:00-05:00', close: '2026-10-22T09:00:00-05:00' },
-    { id: 'w4', name: 'Window IV',  group: 'target', open: '2026-10-25T20:00:00-05:00', close: '2026-10-25T21:30:00-05:00' },
-    { id: 'w5', name: 'Window V',   group: 'next',   open: '2026-10-27T22:00:00-05:00', close: '2026-10-27T23:30:00-05:00' }
-  ];
+  var MINUS = '\u2212';
 
   /* Stage rules: pre-staging opens −3 h, staging −1 h, debrief runs to close +1 h. */
   var STAGES = [
     { k: 'pre',  name: 'Pre-staging', label: 'Pre-staging' },
     { k: 'stg',  name: 'Staging',     label: 'Staging' },
-    { k: 'open', name: 'Window Open', label: 'Window' },
+    { k: 'open', name: 'Window open', label: 'Window' },
     { k: 'deb',  name: 'Debrief',     label: 'Debrief' }
   ];
-  var BADGE = { standby: 'Standing by', pre: 'Pre-staging', stg: 'Staging', open: 'Window Open', deb: 'Debrief', ended: 'Ended' };
-  var MINUS = '\u2212';
+  var BADGE = { standby: 'Standing by', pre: 'Pre-staging', stg: 'Staging', open: 'Window open', deb: 'Debrief', ended: 'Ended' };
+  var OUTCOME = { success: 'Launch successful', deserted: 'Launch deserted', unconfirmed: 'Outcome unconfirmed' };
 
   /* ---------- formatting ---------- */
   function pad(n) { return String(n).padStart(2, '0'); }
@@ -238,6 +356,7 @@
   var fHM   = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit', hour12: true });
   var fHMS  = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hour: 'numeric', minute: '2-digit', second: '2-digit', hour12: true });
   var fZone = new Intl.DateTimeFormat('en-US', { timeZone: TZ, timeZoneName: 'short' });
+  var fWall = new Intl.DateTimeFormat('en-US', { timeZone: TZ, hourCycle: 'h23', year: 'numeric', month: '2-digit', day: '2-digit', hour: '2-digit', minute: '2-digit', second: '2-digit' });
 
   function parts(f, ms) { var o = {}; f.formatToParts(ms).forEach(function (p) { o[p.type] = p.value; }); return o; }
   function zoneOf(ms) { return parts(fZone, ms).timeZoneName || 'CT'; }
@@ -251,6 +370,19 @@
                          : A.t + ' ' + A.p + '\u2013' + B.t + ' ' + B.p + ' ' + z;
     }
     return at(a) + ' \u2013 ' + at(b) + ' ' + z;
+  }
+
+  /* Central wall-clock time ('YYYY-MM-DD HH:MM') to an exact instant, CDT or CST as applicable. */
+  function offsetAt(ms) {
+    var o = parts(fWall, ms), s = ms - (ms % 1000);
+    return Date.UTC(+o.year, +o.month - 1, +o.day, (+o.hour) % 24, +o.minute, +o.second) - s;
+  }
+  function central(str) {
+    var m = /^\s*(\d{4})-(\d{1,2})-(\d{1,2})[ T](\d{1,2}):(\d{2})\s*$/.exec(String(str || ''));
+    if (!m) return NaN;
+    var wall = Date.UTC(+m[1], +m[2] - 1, +m[3], +m[4], +m[5]);
+    var t = wall - offsetAt(wall);
+    return wall - offsetAt(t);
   }
 
   /* diff = now − event. Negative (−) means the event is upcoming; positive (+) means it has passed. */
@@ -273,11 +405,28 @@
   }
   function put(el, str) { if (el.__v !== str) { el.__v = str; el.innerHTML = cells(str); } }
   function text(el, str) { if (el.__t !== str) { el.__t = str; el.textContent = str; } }
+  function esc(s) { return String(s).replace(/[&<>"]/g, function (c) { return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;' }[c]; }); }
 
-  /* ---------- derive stages ---------- */
-  WINDOWS.forEach(function (w) {
-    var open = Date.parse(w.open), close = Date.parse(w.close);
+  /* ---------- read the editable data ---------- */
+  function parseLikelihood(v) {
+    if (v === null || v === undefined || v === '') return { state: 'unset', value: null };
+    var n = typeof v === 'number' ? v : Number(v);
+    if (!isFinite(n) || n < 0 || n > 100) return { state: 'invalid', value: null };
+    return { state: 'set', value: n };
+  }
+  function pctText(n) { return (Math.round(n * 10) / 10) + '%'; }
+
+  var DATA_OK = Array.isArray(window.LAUNCH_WINDOWS);
+  var WINDOWS = (DATA_OK ? window.LAUNCH_WINDOWS : []).map(function (src, idx) {
+    src = src || {};
+    var w = {
+      id: 'w' + (idx + 1),
+      name: String(src.name || 'Window ' + (idx + 1)),
+      lk: parseLikelihood(src.likelihood)
+    };
+    var open = central(src.open), close = central(src.close);
     w.valid = isFinite(open) && isFinite(close) && close > open;
+    if (!w.valid) return w;
     var t = { pre: open - 3 * HOUR, stg: open - HOUR, open: open, close: close, end: close + HOUR };
     w.t = t;
     var b = [t.pre, t.stg, t.open, t.close, t.end];
@@ -289,6 +438,7 @@
       { name: 'Window closes',      at: t.close },
       { name: 'Debrief ends',       at: t.end }
     ];
+    return w;
   });
 
   function phaseOf(w, now) {
@@ -300,14 +450,35 @@
     return { k: 'ended', i: 4 };
   }
 
+  /* Outcome rules (see the EDIT HERE block at the top of the file). */
+  function outcomeOf(w, now) {
+    var v = w.lk.value;
+    if (v === 100 && now >= w.t.open) return 'success';
+    if (now >= w.t.close) return v === 0 ? 'deserted' : 'unconfirmed';
+    return null;
+  }
+
   /* ---------- build cards ---------- */
   function grp(u, label) {
     return '<span class="grp" aria-hidden="true"><span class="num" data-u="' + u + '"></span><span class="unit">' + label + '</span></span>';
   }
   var SEP = '<span class="sep" aria-hidden="true">:</span>';
 
+  function likelihoodHTML(w) {
+    var lk = w.lk, ticks = '';
+    for (var i = 0; i < 20; i++) {
+      var f = lk.value == null ? 0 : clamp((lk.value - i * 5) / 5);
+      ticks += '<i>' + (f > 0 ? '<b style="width:' + (f * 100).toFixed(1) + '%"></b>' : '') + '</i>';
+    }
+    var val = lk.state === 'set' ? pctText(lk.value) : lk.state === 'unset' ? 'Not set' : 'Check value';
+    return '<div class="lk">' +
+             '<div class="lk-top"><span class="flab">Launch likelihood</span><span class="lk-val' + (lk.state === 'set' ? '' : ' muted') + '">' + val + '</span></div>' +
+             '<div class="lk-meter" role="meter" aria-label="Launch likelihood" aria-valuemin="0" aria-valuemax="100"' +
+               (lk.state === 'set' ? ' aria-valuenow="' + lk.value + '"' : ' aria-valuetext="' + val + '"') + '>' + ticks + '</div>' +
+           '</div>';
+  }
+
   function cardHTML(w) {
-    var lapsed = w.group === 'lapsed';
     var when = day(w.t.open) === day(w.t.close) ? day(w.t.open) + ', ' + range(w.t.open, w.t.close) : range(w.t.open, w.t.close);
     var segs = w.stages.map(function (s, i) {
       return '<button type="button" class="seg" data-i="' + i + '" data-k="' + s.k + '" style="--g:' + Math.round((s.end - s.start) / 60000) + '" aria-pressed="false" aria-label="' + s.name + ', ' + range(s.start, s.end) + '">' +
@@ -320,17 +491,19 @@
              '<span class="ms-t"></span><span class="ms-when">' + at(m.at) + ' ' + zoneOf(m.at) + '</span></li>';
     }).join('');
     return '' +
-      '<article class="card' + (lapsed ? ' lapsed' : '') + (w.group === 'target' ? ' target' : '') + '" id="' + w.id + '">' +
+      '<article class="card" id="' + w.id + '">' +
         '<header class="card-head">' +
-          '<div><h3 class="wname">' + w.name + '</h3><p class="wwhen">' + when + '</p></div>' +
+          '<h3 class="wname">' + esc(w.name) + '</h3>' +
           '<span class="badge"><span class="bdot" aria-hidden="true"></span><span class="btxt"></span></span>' +
         '</header>' +
+        '<p class="wwhen">' + when + '</p>' +
         '<div class="clock" role="timer"><span class="clock-in">' +
           '<span class="sign" aria-hidden="true"></span>' +
-          grp('d', 'days') + SEP + grp('h', 'hrs') + SEP + grp('m', 'min') + SEP + grp('s', 'sec') +
+          grp('d', 'Days') + SEP + grp('h', 'Hrs') + SEP + grp('m', 'Min') + SEP + grp('s', 'Sec') +
         '</span></div>' +
         '<p class="clock-cap"></p>' +
-        '<div class="track" role="group" aria-label="' + w.name + ' stages. Select a stage to inspect it.">' + segs + '</div>' +
+        likelihoodHTML(w) +
+        '<div class="track" role="group" aria-label="' + esc(w.name) + ' stages. Select a stage to inspect it.">' + segs + '</div>' +
         '<section class="panel" aria-label="Stage detail">' +
           '<div class="panel-top"><span class="ptag"></span><button type="button" class="relive" hidden>Back to live</button></div>' +
           '<p class="sname"></p>' +
@@ -348,19 +521,24 @@
       '</article>';
   }
 
+  var errBox = document.getElementById('errors');
+  if (!DATA_OK) {
+    errBox.insertAdjacentHTML('beforeend', '<p class="alert">The window list at the top of this file couldn’t be read. This is usually a missing comma, quote mark or bracket in the EDIT HERE block.</p>');
+  }
+
   var cards = [];
   WINDOWS.forEach(function (w) {
-    var host = document.querySelector('.stack[data-group="' + w.group + '"]');
     if (!w.valid) {
-      host.insertAdjacentHTML('beforeend', '<article class="card lapsed"><h3 class="wname">' + w.name +
-        '</h3><p class="wwhen">This window’s close time is not after its open time. Check the data.</p></article>');
+      errBox.insertAdjacentHTML('beforeend', '<article class="card error"><h3 class="wname">' + esc(w.name) +
+        '</h3><p class="wwhen">Check this window’s open and close times in the file. They must be written YYYY-MM-DD HH:MM, and the close must come after the open.</p></article>');
       return;
     }
-    host.insertAdjacentHTML('beforeend', cardHTML(w));
-    var el = document.getElementById(w.id);
+    var holder = document.createElement('div');
+    holder.innerHTML = cardHTML(w);
+    var el = holder.firstElementChild;
     var q = function (s) { return el.querySelector(s); };
     var c = {
-      w: w, el: el, follow: true, sel: 0, phase: null,
+      w: w, el: el, group: null, follow: true, sel: 0, phase: null, oc: null,
       badge: q('.badge'), btxt: q('.btxt'),
       clock: q('.clock'), sign: q('.sign'), cap: q('.clock-cap'),
       nums: { d: q('[data-u="d"]'), h: q('[data-u="h"]'), m: q('[data-u="m"]'), s: q('[data-u="s"]') },
@@ -389,6 +567,8 @@
     });
     cards.push(c);
   });
+  /* Chronological order, whatever order the list in the file is in */
+  cards.sort(function (a, b) { return (a.w.t.open - b.w.t.open) || (a.w.t.close - b.w.t.close); });
 
   /* ---------- render ---------- */
   var reduce = window.matchMedia('(prefers-reduced-motion: reduce)');
@@ -397,22 +577,29 @@
     el.classList.remove('ignite'); void el.offsetWidth; el.classList.add('ignite');
   }
 
+  function setClock(nums, sign, el, r) {
+    text(sign, r.up ? 'T' + MINUS : 'T+');
+    put(nums.d, pad(r.d)); put(nums.h, pad(r.h)); put(nums.m, pad(r.m)); put(nums.s, pad(r.s));
+    el.setAttribute('aria-label', 'T ' + (r.up ? 'minus ' : 'plus ') + r.d + ' days, ' + r.h + ' hours, ' + r.m + ' minutes, ' + r.s + ' seconds');
+  }
+
   function renderCard(c, now) {
-    var w = c.w, ph = phaseOf(w, now), lapsed = w.group === 'lapsed';
+    var w = c.w, ph = phaseOf(w, now), oc = outcomeOf(w, now);
 
-    if (c.phase && c.phase !== ph.k) flash(c.el);
-    c.phase = ph.k;
+    if (c.phase && (c.phase !== ph.k || c.oc !== oc)) flash(c.el);
+    c.phase = ph.k; c.oc = oc;
     c.el.setAttribute('data-phase', ph.k);
+    c.el.classList.toggle('success', oc === 'success');
+    c.el.classList.toggle('deserted', oc === 'deserted');
+    c.el.classList.toggle('unconfirmed', oc === 'unconfirmed');
 
-    c.badge.setAttribute('data-state', lapsed ? 'lapsed' : ph.k);
-    text(c.btxt, lapsed ? 'Not utilized' : BADGE[ph.k]);
+    c.badge.setAttribute('data-state', oc || ph.k);
+    text(c.btxt, oc ? OUTCOME[oc] : BADGE[ph.k]);
 
     /* Main clock: T relative to the window opening */
     var r = signed(now - w.t.open);
-    text(c.sign, r.up ? 'T' + MINUS : 'T+');
-    put(c.nums.d, pad(r.d)); put(c.nums.h, pad(r.h)); put(c.nums.m, pad(r.m)); put(c.nums.s, pad(r.s));
-    c.clock.setAttribute('aria-label', 'T ' + (r.up ? 'minus ' : 'plus ') + r.d + ' days, ' + r.h + ' hours, ' + r.m + ' minutes, ' + r.s + ' seconds');
-    text(c.cap, r.up ? 'until window opens' : 'since window opened');
+    setClock(c.nums, c.sign, c.clock, r);
+    text(c.cap, r.up ? 'Until window opens' : 'Since window opened');
 
     /* Stage track */
     c.segs.forEach(function (b, i) {
@@ -455,6 +642,32 @@
     }
   }
 
+  /* Zero hour */
+  var zhEl = document.getElementById('zh');
+  var zh = null;
+  (function () {
+    var cfg = window.ZERO_HOUR || {};
+    var s = central(cfg.start), e = central(cfg.end);
+    if (!(isFinite(s) && isFinite(e) && e > s)) { zhEl.parentNode.style.display = 'none'; return; }
+    var clock = document.getElementById('zh-clock');
+    zh = {
+      start: s, end: e, clock: clock, sign: clock.querySelector('.sign'),
+      nums: { d: clock.querySelector('[data-u="d"]'), h: clock.querySelector('[data-u="h"]'), m: clock.querySelector('[data-u="m"]'), s: clock.querySelector('[data-u="s"]') },
+      bar: document.getElementById('zh-bar'), fill: document.getElementById('zh-fill'), pct: document.getElementById('zh-pct')
+    };
+  })();
+  function renderZero(now) {
+    if (!zh) return;
+    var r = signed(now - zh.end);
+    setClock(zh.nums, zh.sign, zh.clock, r);
+    var p = clamp((now - zh.start) / (zh.end - zh.start));
+    zh.fill.style.width = (p * 100).toFixed(4) + '%';
+    zh.bar.setAttribute('aria-valuenow', (p * 100).toFixed(1));
+    put(zh.pct, (p * 100).toFixed(2) + '%');
+    zhEl.classList.toggle('done', !r.up);
+  }
+
+  /* Header clock and lapsed summary */
   var mDate = document.getElementById('m-date'), mTime = document.getElementById('m-time'), mZone = document.getElementById('m-zone');
   function renderMission(now) {
     var o = parts(fHMS, now);
@@ -463,14 +676,80 @@
     text(mZone, zoneOf(now));
   }
 
+  /* Sections follow the clock: a window moves to Lapsed once its debrief ends. Of the rest,
+     the earliest is the target, the one after it is next, and any others are later. */
+  var hosts = {
+    lapsed: document.querySelector('.stack[data-group="lapsed"]'),
+    target: document.querySelector('.stack[data-group="target"]'),
+    next:   document.querySelector('.stack[data-group="next"]'),
+    later:  document.querySelector('.stack[data-group="later"]')
+  };
+  var empties = { target: document.querySelector('[data-empty="target"]'), next: document.querySelector('[data-empty="next"]') };
+  var laterSec = document.getElementById('sec-later');
+  var assigned = false;
+
+  function assign(now) {
+    var live = 0, changed = false, counts = { lapsed: 0, target: 0, next: 0, later: 0 };
+    cards.forEach(function (c) {
+      var g;
+      if (now >= c.w.t.end) g = 'lapsed';
+      else { g = live === 0 ? 'target' : live === 1 ? 'next' : 'later'; live++; }
+      counts[g]++;
+      if (c.group !== g) {
+        if (assigned && g === 'target') c.promote = true;
+        c.group = g; changed = true;
+      }
+    });
+    if (!changed && assigned) return false;
+    cards.forEach(function (c) {
+      hosts[c.group].appendChild(c.el);
+      c.el.classList.toggle('target', c.group === 'target');
+      if (c.promote) { c.promote = false; flash(c.el); }
+    });
+    empties.target.hidden = counts.target > 0;
+    empties.next.hidden = counts.next > 0;
+    laterSec.hidden = counts.later === 0;
+    assigned = true;
+    return true;
+  }
+
+  function plural(n, word) { return n + ' ' + word + (n === 1 ? '' : 's'); }
+  var accMeta = document.getElementById('lapsed-meta'), laterMeta = document.getElementById('later-meta');
+  function renderSummaries(now) {
+    var lapsed = cards.filter(function (c) { return c.group === 'lapsed'; });
+    var n = lapsed.length;
+    if (!n) {
+      text(accMeta, 'No windows yet');
+    } else {
+      var k = { success: 0, deserted: 0, unconfirmed: 0 };
+      lapsed.forEach(function (c) { var o = outcomeOf(c.w, now); if (o) k[o]++; });
+      var head = plural(n, 'window');
+      if (k.deserted === n) text(accMeta, head + (n === 1 ? ', deserted' : ', all deserted'));
+      else if (k.success === n) text(accMeta, head + (n === 1 ? ', successful' : ', all successful'));
+      else {
+        var bits = [];
+        if (k.success) bits.push(k.success + ' successful');
+        if (k.deserted) bits.push(k.deserted + ' deserted');
+        if (k.unconfirmed) bits.push(k.unconfirmed + ' unconfirmed');
+        text(accMeta, head + ': ' + bits.join(', '));
+      }
+    }
+    var later = cards.filter(function (c) { return c.group === 'later'; });
+    if (later.length) text(laterMeta, plural(later.length, 'window') + ', first opens ' + at(later[0].w.t.open) + ' ' + zoneOf(later[0].w.t.open));
+  }
+
   function tick() {
     var now = Date.now();
+    var moved = assign(now);
+    renderZero(now);
     renderMission(now);
     cards.forEach(function (c) { renderCard(c, now); });
+    renderSummaries(now);
+    if (moved) fitClocks();
   }
   function loop() { tick(); setTimeout(loop, 1000 - (Date.now() % 1000) + 15); }
 
-  /* Shrink every T-clock together if the widest one would overflow its card */
+  /* Shrink every window T-clock together if the widest one would overflow its card */
   function fitClocks() {
     var list = cards.map(function (c) { return c.clock; });
     list.forEach(function (el) { el.style.fontSize = ''; });
@@ -485,15 +764,15 @@
     }
   }
 
-  /* Lapsed accordion */
-  var acc = document.getElementById('h-lapsed'), accBody = document.getElementById('lapsed-body');
-  var nLapsed = WINDOWS.filter(function (w) { return w.group === 'lapsed'; }).length;
-  document.getElementById('lapsed-meta').textContent = nLapsed + ' windows, not utilized';
-  acc.addEventListener('click', function () {
-    var open = acc.getAttribute('aria-expanded') !== 'true';
-    acc.setAttribute('aria-expanded', String(open));
-    accBody.classList.toggle('open', open);
-    if (open) accBody.removeAttribute('inert'); else accBody.setAttribute('inert', '');
+  /* Collapsible sections (Lapsed and Later) */
+  Array.prototype.forEach.call(document.querySelectorAll('.acc'), function (btn) {
+    var body = document.getElementById(btn.getAttribute('aria-controls'));
+    btn.addEventListener('click', function () {
+      var open = btn.getAttribute('aria-expanded') !== 'true';
+      btn.setAttribute('aria-expanded', String(open));
+      body.classList.toggle('open', open);
+      if (open) body.removeAttribute('inert'); else body.setAttribute('inert', '');
+    });
   });
 
   loop();
